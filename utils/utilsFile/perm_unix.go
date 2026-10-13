@@ -8,10 +8,6 @@ import (
 	"path/filepath"
 )
 
-// projectConfigDirName 与 auth.ConfigPath "config/authConfig.json" 的父目录同名。
-// 写在这里是为了不让 utils 反向依赖 auth。
-const projectConfigDirName = "config"
-
 // ProtectConfigFile 把配置文件收成仅属主可读写。
 // 父目录只有在明确是项目的 config 目录时才收成 0700：目录名是 config，
 // 或路径等于、以该配置目录结尾。通用 JSON 写入也会调用这里，
@@ -31,12 +27,24 @@ func ProtectConfigFile(filePath string) error {
 	return nil
 }
 
-// isProjectConfigDir 判断目录是不是项目配置目录。
-// 只认目录名恰好是 config。config.bak、myconfig、以及更上层的父目录都不算。
-func isProjectConfigDir(dir string) bool {
-	clean := filepath.Clean(dir)
-	if clean == "" || clean == "." || clean == string(filepath.Separator) {
-		return false
+// VerifyConfigProtected 核对 Unix 权限位：文件 0600，项目 config 目录 0700。
+func VerifyConfigProtected(filePath, dirPath string) error {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return err
 	}
-	return filepath.Base(clean) == projectConfigDirName
+	if info.Mode().Perm() != 0600 {
+		return fmt.Errorf("配置文件 %s 权限是 %o，想要 600", filePath, info.Mode().Perm())
+	}
+	if dirPath == "" || !isProjectConfigDir(dirPath) {
+		return nil
+	}
+	dirInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return err
+	}
+	if dirInfo.Mode().Perm() != 0700 {
+		return fmt.Errorf("配置目录 %s 权限是 %o，想要 700", dirPath, dirInfo.Mode().Perm())
+	}
+	return nil
 }

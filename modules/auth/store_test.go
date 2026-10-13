@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"linkstar/utils/jwt"
+	"linkstar/utils/utilsFile"
 )
 
 // newTestRuntime 给每个用例一个独立的临时工作目录，
@@ -38,7 +39,9 @@ func Test读取旧配置时把权限收紧到只有属主可读(t *testing.T) {
 	if _, err := ReadConfig(); err != nil {
 		t.Fatal(err)
 	}
-	assertConfigOwnerOnly(t, "config/authConfig.json", "config")
+	if err := utilsFile.VerifyConfigProtected("config/authConfig.json", "config"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func Test设置密码会换掉已落盘的密钥并收紧权限(t *testing.T) {
@@ -57,7 +60,9 @@ func Test设置密码会换掉已落盘的密钥并收紧权限(t *testing.T) {
 	if r.Config.JwtSecret == "" || r.Config.JwtSecret == oldSecret {
 		t.Fatal("设置密码后应换一把新的签名密钥，避免事先抄走的密钥继续有效")
 	}
-	assertConfigOwnerOnly(t, "config/authConfig.json", "config")
+	if err := utilsFile.VerifyConfigProtected("config/authConfig.json", "config"); err != nil {
+		t.Fatal(err)
+	}
 
 	oldToken, err := jwt.GenerateToken(oldSecret, time.Hour)
 	if err != nil {
