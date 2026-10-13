@@ -80,6 +80,6 @@ func WriteJsonFile[T any](filePath string, obj T) error {
 	if err = os.WriteFile(filePath, data, 0600); err != nil {
 		return err
 	}
-	// 只在配置落盘时收紧。通用的 ReadJsonFile 不改权限，避免读任意 JSON 时去动父目录。
+	// 文件收成 0600。父目录只有在是项目 config/ 时才收成 0700，见 ProtectConfigFile。
 	return ProtectConfigFile(filePath)
 }
