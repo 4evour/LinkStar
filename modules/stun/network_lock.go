@@ -30,6 +30,15 @@ func NetworkSnapshot() model.NetworkState {
 	if n.NatRouterList != nil {
 		n.NatRouterList = append([]model.NatRouterInfo(nil), n.NatRouterList...)
 	}
+	// 指针字段也要复制。否则调用方改快照里的 NAT 结果，会直接改到运行时。
+	if n.NatStatuUDP != nil {
+		udp := *n.NatStatuUDP
+		n.NatStatuUDP = &udp
+	}
+	if n.NatStatuTCP != nil {
+		tcp := *n.NatStatuTCP
+		n.NatStatuTCP = &tcp
+	}
 	return n
 }
 
