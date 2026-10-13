@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"linkstar/utils/jwt"
 )
 
 // newTestRuntime 给每个用例一个独立的临时工作目录，
@@ -16,8 +18,79 @@ func newTestRuntime(t *testing.T) *AuthRuntime {
 	if err := os.MkdirAll("config", 0o755); err != nil {
 		t.Fatalf("创建 config 目录失败：%v", err)
 	}
+	secret, err := randomSecret()
+	if err != nil {
+		t.Fatalf("生成测试密钥失败：%v", err)
+	}
 	return &AuthRuntime{
-		Config: Config{JwtSecret: randomSecret(), TokenTTLHours: defaultTokenTTLHours},
+		Config: Config{JwtSecret: secret, TokenTTLHours: defaultTokenTTLHours},
+	}
+}
+
+func Test读取旧配置时把权限收紧到只有属主可读(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.MkdirAll("config", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("config/authConfig.json", []byte("{\"initialized\":false,\"jwtSecret\":\"abc\",\"tokenTtlHours\":1}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadConfig(); err != nil {
+		t.Fatal(err)
+	}
+	fileInfo, err := os.Stat("config/authConfig.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fileInfo.Mode().Perm() != 0o600 {
+		t.Fatalf("读取后文件权限 = %o，想要 600", fileInfo.Mode().Perm())
+	}
+	dirInfo, err := os.Stat("config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dirInfo.Mode().Perm() != 0o700 {
+		t.Fatalf("读取后目录权限 = %o，想要 700", dirInfo.Mode().Perm())
+	}
+}
+
+func Test设置密码会换掉已落盘的密钥并收紧权限(t *testing.T) {
+	r := newTestRuntime(t)
+	oldSecret := r.Config.JwtSecret
+	if err := os.WriteFile("config/authConfig.json", []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod("config", 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.Setup("password-123"); err != nil {
+		t.Fatalf("Setup 失败：%v", err)
+	}
+	if r.Config.JwtSecret == "" || r.Config.JwtSecret == oldSecret {
+		t.Fatal("设置密码后应换一把新的签名密钥，避免事先抄走的密钥继续有效")
+	}
+	fileInfo, err := os.Stat("config/authConfig.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fileInfo.Mode().Perm() != 0o600 {
+		t.Fatalf("配置文件权限 = %o，想要 600", fileInfo.Mode().Perm())
+	}
+	dirInfo, err := os.Stat("config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dirInfo.Mode().Perm() != 0o700 {
+		t.Fatalf("config 目录权限 = %o，想要 700", dirInfo.Mode().Perm())
+	}
+
+	oldToken, err := jwt.GenerateToken(oldSecret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ValidateToken(oldToken) {
+		t.Fatal("用设置密码前的密钥签发的 token 不应再通过")
 	}
 }
 

@@ -3,6 +3,7 @@ package utilsFile
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 // // 读取config 配置文件
@@ -65,6 +66,8 @@ func ReadJsonFile[T any](filePath string) (T, error) {
 	if err = json.Unmarshal(data, &result); err != nil {
 		return result, err
 	}
+	// 老版本把含密钥的 JSON 写成了 0644。读到就收紧，不必等下一次保存。
+	tightenConfigPerm(filePath)
 
 	return result, nil
 }
@@ -77,10 +80,19 @@ func WriteJsonFile[T any](filePath string, obj T) error {
 		return err
 	}
 
-	// 写入文件，权限设置为0644
-	if err = os.WriteFile(filePath, data, 0644); err != nil {
+	// 配置里有 JWT 密钥、DNS token、密码哈希。0644 会让同机其他用户直接读走密钥。
+	if err = os.WriteFile(filePath, data, 0600); err != nil {
 		return err
 	}
+	tightenConfigPerm(filePath)
 
 	return nil
+}
+
+// tightenConfigPerm 配置文件只给属主读写，所在目录不给其他用户进。
+func tightenConfigPerm(filePath string) {
+	_ = os.Chmod(filePath, 0600)
+	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
+		_ = os.Chmod(dir, 0700)
+	}
 }
