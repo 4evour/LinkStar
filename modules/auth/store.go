@@ -161,6 +161,13 @@ func (r *AuthRuntime) ChangePassword(oldPassword, newPassword string) (string, e
 	if !cfg.Initialized {
 		return "", ErrNotInitialized
 	}
+	if !globalLoginFailureLimiter.begin(time.Now()) {
+		return "", ErrLoginLimited
+	}
+	loginResult := loginAttemptIgnored
+	defer func() {
+		globalLoginFailureLimiter.finish(loginResult, time.Now())
+	}()
 	matched, err := pwd.VerifyPassword(cfg.PasswordHash, oldPassword)
 	if errors.Is(err, pwd.ErrArgon2Busy) {
 		return "", ErrPasswordBusy
@@ -169,6 +176,7 @@ func (r *AuthRuntime) ChangePassword(oldPassword, newPassword string) (string, e
 		return "", err
 	}
 	if !matched {
+		loginResult = loginAttemptFailed
 		return "", ErrWrongPassword
 	}
 	hash, err := pwd.HashPassword(newPassword)
@@ -196,5 +204,6 @@ func (r *AuthRuntime) ChangePassword(oldPassword, newPassword string) (string, e
 	}); err != nil {
 		return "", err
 	}
+	loginResult = loginAttemptSucceeded
 	return jwt.GenerateToken(secret, time.Duration(ttlHours)*time.Hour)
 }
