@@ -363,7 +363,6 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 	sourceMu.Unlock()
 
 	var lastErr error
-	votes := map[string]int{}
 	for _, s := range ordered {
 		start := time.Now()
 		ip, err := fetchIPFromWeb(s.URL, version)
@@ -389,16 +388,10 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 			lastErr = err
 			continue
 		}
-		// 回显站经常给出不同地址。至少两个源一致才写进 DNS，避免把某一次的偶然结果推上去。
-		votes[ip]++
-		if votes[ip] >= 2 {
-			return ip, nil
-		}
+		// 第一个通过校验的来源就采用。多源必须一致会让只剩一个可用回显站时 DDNS 停更。
+		return ip, nil
 	}
-	if len(votes) == 0 {
-		return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
-	}
-	return "", fmt.Errorf("IP 查询源没有两个一致的结果: %v", votes)
+	return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
 
 }
 
