@@ -1,0 +1,70 @@
+?   	linkstar/api	[no test files]
+?   	linkstar/api/auth_api	[no test files]
+?   	linkstar/api/cert_api	[no test files]
+?   	linkstar/api/ddns_api	[no test files]
+?   	linkstar/api/home_api	[no test files]
+?   	linkstar/api/proxy_api	[no test files]
+ok  	linkstar/api/stun_api	0.009s
+ok  	linkstar/api/system_api	0.004s
+?   	linkstar/api/webhook_api	[no test files]
+ok  	linkstar/modules/auth	0.372s
+ok  	linkstar/modules/cert	0.005s
+?   	linkstar/modules/cert/model	[no test files]
+ok  	linkstar/modules/ddns	0.447s
+ok  	linkstar/modules/ddns/dns	0.173s
+?   	linkstar/modules/ddns/model	[no test files]
+?   	linkstar/modules/home	[no test files]
+ok  	linkstar/modules/plainhttp	0.006s
+ok  	linkstar/modules/proxy	0.003s
+?   	linkstar/modules/proxy/model	[no test files]
+?   	linkstar/modules/srv	[no test files]
+time="2026-10-13T07:15:44Z" level=error msg="连接内网目标失败 [127.0.0.1:35379]: 内网服务不是 HTTPS，却按 HTTPS 去连了——请取消该服务的「转发给内网时也用 HTTPS」勾选（原始错误：tls: first record does not look like a TLS handshake）"
+--- FAIL: TestNatType (4.00s)
+    nat_type_test.go:8: 启动时检测 NAT 类型失败: 网络基础数据未就绪: 从RFC 5780候选列表选择STUN服务器失败: 没有有效的 RFC 5780 候选服务器: stun.voipgate.com:3478: 解析失败: 解析 stun.voipgate.com 失败: lookup stun.voipgate.com: i/o timeout
+        stun.sonetel.com:3478: 解析失败: 解析 stun.sonetel.com 失败: lookup stun.sonetel.com: i/o timeout
+        stun.radiojar.com:3478: 解析失败: 解析 stun.radiojar.com 失败: lookup stun.radiojar.com: i/o timeout
+        stun.nextcloud.com:3478: 解析失败: 解析 stun.nextcloud.com 失败: lookup stun.nextcloud.com: i/o timeout
+        stun.sonetel.net:3478: 解析失败: 解析 stun.sonetel.net 失败: lookup stun.sonetel.net: i/o timeout
+        stun.sip.us:3478: 解析失败: 解析 stun.sip.us 失败: lookup stun.sip.us: i/o timeout
+        stun.dcalling.de:3478: 解析失败: 解析 stun.dcalling.de 失败: lookup stun.dcalling.de: i/o timeout
+        stun.freeswitch.org:3478: 解析失败: 解析 stun.freeswitch.org 失败: lookup stun.freeswitch.org: i/o timeout
+time="2026-10-13T07:15:48Z" level=info msg="探测到cgn出口: 100.72.0.1，终止扫描"
+time="2026-10-13T07:15:48Z" level=info msg="探测到公网出口: 203.0.113.1，终止扫描"
+time="2026-10-13T07:15:48Z" level=info msg="探测到cgn出口: 100.72.0.1，终止扫描"
+time="2026-10-13T07:15:48Z" level=info msg="探测到cgn出口: 100.72.0.1，终止扫描"
+time="2026-10-13T07:15:48Z" level=info msg="服务已删除，顺带清掉自动添加的解析记录：home.example.com"
+time="2026-10-13T07:15:48Z" level=info msg="服务已删除，顺带清掉入口域名的记录：nas.example.com"
+time="2026-10-13T07:15:48Z" level=warning msg="服务已删除，但入口重定向规则没清掉：linkstar:1-2" error="打不通 Cloudflare"
+--- FAIL: TestRFC5780UDP (4.00s)
+    rfc5780_test.go:10: selectRFC5780Server 失败: 没有有效的 RFC 5780 候选服务器: stun.dcalling.de:3478: 解析失败: 解析 stun.dcalling.de 失败: lookup stun.dcalling.de: i/o timeout
+        stun.freeswitch.org:3478: 解析失败: 解析 stun.freeswitch.org 失败: lookup stun.freeswitch.org: i/o timeout
+        stun.sip.us:3478: 解析失败: 解析 stun.sip.us 失败: lookup stun.sip.us: i/o timeout
+        stun.nextcloud.com:3478: 解析失败: 解析 stun.nextcloud.com 失败: lookup stun.nextcloud.com: i/o timeout
+        stun.voipgate.com:3478: 解析失败: 解析 stun.voipgate.com 失败: lookup stun.voipgate.com: i/o timeout
+        stun.radiojar.com:3478: 解析失败: 解析 stun.radiojar.com 失败: lookup stun.radiojar.com: i/o timeout
+        stun.sonetel.net:3478: 解析失败: 解析 stun.sonetel.net 失败: lookup stun.sonetel.net: i/o timeout
+        stun.sonetel.com:3478: 解析失败: 解析 stun.sonetel.com 失败: lookup stun.sonetel.com: i/o timeout
+--- FAIL: TestRFC5780TCP (4.00s)
+    rfc5780_test.go:35: selectRFC5780Server 失败: 没有有效的 RFC 5780 候选服务器: stun.nextcloud.com:3478: 解析失败: 解析 stun.nextcloud.com 失败: lookup stun.nextcloud.com: i/o timeout
+        stun.radiojar.com:3478: 解析失败: 解析 stun.radiojar.com 失败: lookup stun.radiojar.com: i/o timeout
+        stun.sonetel.com:3478: 解析失败: 解析 stun.sonetel.com 失败: lookup stun.sonetel.com: i/o timeout
+        stun.voipgate.com:3478: 解析失败: 解析 stun.voipgate.com 失败: lookup stun.voipgate.com: i/o timeout
+        stun.freeswitch.org:3478: 解析失败: 解析 stun.freeswitch.org 失败: lookup stun.freeswitch.org: i/o timeout
+        stun.sip.us:3478: 解析失败: 解析 stun.sip.us 失败: lookup stun.sip.us: i/o timeout
+        stun.sonetel.net:3478: 解析失败: 解析 stun.sonetel.net 失败: lookup stun.sonetel.net: i/o timeout
+        stun.dcalling.de:3478: 解析失败: 解析 stun.dcalling.de 失败: lookup stun.dcalling.de: i/o timeout
+FAIL
+FAIL	linkstar/modules/stun	12.494s
+?   	linkstar/modules/stun/model	[no test files]
+ok  	linkstar/modules/stun/test	5.362s
+ok  	linkstar/modules/update	0.215s
+ok  	linkstar/modules/webhook	0.003s
+ok  	linkstar/routers	0.025s
+?   	linkstar/utils	[no test files]
+?   	linkstar/utils/domain	[no test files]
+?   	linkstar/utils/http_utils	[no test files]
+?   	linkstar/utils/jwt	[no test files]
+ok  	linkstar/utils/pwd	0.002s
+?   	linkstar/utils/res	[no test files]
+?   	linkstar/utils/utilsFile	[no test files]
+FAIL

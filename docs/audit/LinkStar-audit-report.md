@@ -8,10 +8,10 @@
 
 原始日志（含终端颜色码）：
 
-- [`logs/build.stderr.txt`](logs/build.stderr.txt)
-- [`logs/run1.stderr.txt`](logs/run1.stderr.txt)、[`logs/run1.stdout.txt`](logs/run1.stdout.txt)
-- [`logs/run2.stderr.txt`](logs/run2.stderr.txt)
-- [`logs/go-test.stdout.txt`](logs/go-test.stdout.txt)
+- [`run-logs/build.stderr.txt`](run-logs/build.stderr.txt)
+- [`run-logs/run1.stderr.txt`](run-logs/run1.stderr.txt)、[`run-logs/run1.stdout.txt`](run-logs/run1.stdout.txt)
+- [`run-logs/run2.stderr.txt`](run-logs/run2.stderr.txt)
+- [`run-logs/go-test.stdout.txt`](run-logs/go-test.stdout.txt)
 
 ---
 
@@ -65,7 +65,7 @@
 cd /workspace && go build -o /tmp/linkstar-audit/linkstar .
 ```
 
-stderr 只有 `go: downloading ...`，没有编译错误。全文见 [`logs/build.stderr.txt`](logs/build.stderr.txt)。
+stderr 只有 `go: downloading ...`，没有编译错误。全文见 [`run-logs/build.stderr.txt`](run-logs/build.stderr.txt)。
 
 3. 第一次默认启动（退出码 124，因为外层 `timeout 12` 发送了 SIGTERM，不是程序自己崩了）。工作目录 `/tmp/linkstar-audit/run`。
 
@@ -79,7 +79,7 @@ stdout 只有一行：
 [GIN] 2026/10/13 - 15:15:38 | 200 |      18.056µs |       127.0.0.1 | GET      "/linkstar/"
 ```
 
-这是进程自己在 `isLinkStarBackendReady` 里探测管理页。stderr 全文见 [`logs/run1.stderr.txt`](logs/run1.stderr.txt)。去掉颜色码后的关键行：
+这是进程自己在 `isLinkStarBackendReady` 里探测管理页。stderr 全文见 [`run-logs/run1.stderr.txt`](run-logs/run1.stderr.txt)。去掉颜色码后的关键行：
 
 ```text
 [info]  LinkStar Run
@@ -139,7 +139,7 @@ FAIL	linkstar/modules/stun	12.494s
 time="2026-10-13T07:15:44Z" level=error msg="连接内网目标失败 [127.0.0.1:35379]: 内网服务不是 HTTPS，却按 HTTPS 去连了——请取消该服务的「转发给内网时也用 HTTPS」勾选（原始错误：tls: first record does not look like a TLS handshake）"
 ```
 
-6. 第二次启动在 `/tmp/linkstar-audit/run2`，用来打 HTTP。管理页、首页均 200。`GET /api/auth/status` 返回 `initialized:false`。随后用接口把密码设上并做了第 3 节里的鉴权复现。路由扫描再次停在保留地址：`探测到公网出口: 242.2.26.193`。进程在探针结束后被杀掉。stderr 见 [`logs/run2.stderr.txt`](logs/run2.stderr.txt)。
+6. 第二次启动在 `/tmp/linkstar-audit/run2`，用来打 HTTP。管理页、首页均 200。`GET /api/auth/status` 返回 `initialized:false`。随后用接口把密码设上并做了第 3 节里的鉴权复现。路由扫描再次停在保留地址：`探测到公网出口: 242.2.26.193`。进程在探针结束后被杀掉。stderr 见 [`run-logs/run2.stderr.txt`](run-logs/run2.stderr.txt)。
 
 ### 2.3 启动结论
 

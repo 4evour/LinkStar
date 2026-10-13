@@ -1,0 +1,55 @@
+[2026-10-13 15:25:25] [36m[info][0m [app.go:43,main.initRuntime] [36m LinkStar Run [0m
+[2026-10-13 15:25:25] [36m[info][0m [enter.go:104,linkstar/routers.Run] [36m 后端运行在：0.0.0.0:3333 [0m
+[2026-10-13 15:25:25] [36m[info][0m [main_cli.go:19,main.main] [36m 管理后台运行在 http://127.0.0.1:3333/linkstar/ [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Cert 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Auth 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Home 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Webhook 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Home 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m DDNS 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Auth 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m STUN 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [solver.go:166,linkstar/modules/cert.logCertInfo] [36m [cert] 自签证书(id=1): 已生成自签证书：0 个域名 + 4 个本机地址，有效期至 2036-10-13 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Cert 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Webhook 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Proxy 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:114,main.startModulesInBackground.func1.1] [36m Update 模块开始初始化 [0m
+[2026-10-13 15:25:25] [36m[info][0m [main_cli.go:20,main.main] [36m 导航主页运行在 http://127.0.0.1:3333/ [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Update 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m Proxy 模块初始化完成 [0m
+[2026-10-13 15:25:25] [36m[info][0m [init_stun.go:41,linkstar/modules/stun.InitSTUN] [36m 当前出口网卡：enp0s3(172.30.0.2 网关 172.30.0.1) [0m
+[2026-10-13 15:25:25] [36m[info][0m [network_nat_router.go:29,linkstar/modules/stun.GetNatRouterList] [36m 实时扫描网络层级 [0m
+[2026-10-13 15:25:25] [33m[warning][0m [ddns_syncrecord.go:339,linkstar/modules/ddns.initDefaultIPSources.func1.1] [33m IP源探测失败 https://api6.ipify.org: Get "https://api6.ipify.org": dial tcp6 [2607:f2d8:1:3c::4]:443: connect: network is unreachable [0m
+[2026-10-13 15:25:25] [33m[warning][0m [ddns_syncrecord.go:339,linkstar/modules/ddns.initDefaultIPSources.func1.1] [33m IP源探测失败 https://6.ident.me: Get "https://6.ident.me": dial tcp6 [2a01:4f9:c012:8091::1]:443: connect: network is unreachable [0m
+[2026-10-13 15:25:25] [33m[warning][0m [ddns_syncrecord.go:339,linkstar/modules/ddns.initDefaultIPSources.func1.1] [33m IP源探测失败 https://ipv6.icanhazip.com: Get "https://ipv6.icanhazip.com": dial tcp6 [2606:4700::6810:b9f1]:443: connect: network is unreachable [0m
+[2026-10-13 15:25:25] [33m[warning][0m [ddns_syncrecord.go:339,linkstar/modules/ddns.initDefaultIPSources.func1.1] [33m IP源探测失败 https://ipv6.ip.sb: Get "https://ipv6.ip.sb": dial tcp6 [2606:4700:20::ac43:4bac]:443: connect: network is unreachable [0m
+[2026-10-13 15:25:25] [36m[info][0m [ddns_syncrecord.go:342,linkstar/modules/ddns.initDefaultIPSources.func1.1] [36m IP源探测成功 ip 3.228.178.73 https://myexternalip.com/raw: 55.98454ms  [0m
+[2026-10-13 15:25:25] [36m[info][0m [ddns_syncrecord.go:342,linkstar/modules/ddns.initDefaultIPSources.func1.1] [36m IP源探测成功 ip 3.228.178.73 https://ipv4.getip.cc: 60.126805ms  [0m
+[2026-10-13 15:25:25] [36m[info][0m [ddns_syncrecord.go:342,linkstar/modules/ddns.initDefaultIPSources.func1.1] [36m IP源探测成功 ip 18.233.210.77 https://ifconfig.me/ip: 62.110297ms  [0m
+[2026-10-13 15:25:25] [36m[info][0m [ddns_syncrecord.go:342,linkstar/modules/ddns.initDefaultIPSources.func1.1] [36m IP源探测成功 ip 3.228.178.73 https://ipv4.ip.sb: 73.569027ms  [0m
+[2026-10-13 15:25:25] [36m[info][0m [ddns_syncrecord.go:342,linkstar/modules/ddns.initDefaultIPSources.func1.1] [36m IP源探测成功 ip 54.236.146.182 https://4.ident.me: 352.8712ms  [0m
+[2026-10-13 15:25:25] [36m[info][0m [app.go:119,main.startModulesInBackground.func1.1] [36m DDNS 模块初始化完成 [0m
+[2026-10-13 15:25:26] [36m[info][0m [network_nat_router.go:84,linkstar/modules/stun.collectHops] [36m 探测到公网出口: 242.2.26.193，终止扫描 [0m
+[2026-10-13 15:25:26] [36m[info][0m [network_nat_router.go:37,linkstar/modules/stun.GetNatRouterList] [36m 扫描耗时1.076729571ss [0m
+[2026-10-13 15:25:26] [36m[info][0m [init_stun.go:64,linkstar/modules/stun.InitSTUN.func3] [36m 当前NAT Router：[{1 10.0.6.171 private}] [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [stun_server.go:112,linkstar/modules/stun.(*STUNService).UpdateSTUNService.func1] [36m TCP connection failed to be established [0m
+[2026-10-13 15:25:29] [36m[info][0m [init_stun.go:49,linkstar/modules/stun.InitSTUN.func2] [36m 当前使用stun服务器： [0m
+[2026-10-13 15:25:33] [33m[warning][0m [upnp.go:72,linkstar/modules/stun.DiscoverUPnPGateway] [33m 未发现upnp网关 [0m
+[2026-10-13 15:25:33] [33m[warning][0m [upnp.go:136,linkstar/modules/stun.SelectDefaultGateway] [33m 没找到同网段的网关，使用第一个可用网关 [0m
+[2026-10-13 15:25:33] [31m[error][0m [app.go:116,main.startModulesInBackground.func1.1] [31m STUN 模块初始化失败：初始化 STUN 运行时失败: 没有可用的 STUN 服务器 [0m
