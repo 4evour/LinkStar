@@ -3,7 +3,6 @@ package stun
 import (
 	"context"
 	"linkstar/modules/stun/model"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -72,15 +71,12 @@ func updateNetworkAddress(stunServer string) bool {
 		logrus.Warnf("通过 STUN 服务器获取网络地址失败: server=%s err=%v", stunServer, err)
 		return false
 	}
-
-	logrus.Infof("通过 STUN 服务器 %s 获取到的网络地址: LocalIP=%s, PublicIP=%s", stunServer, addrInfo.LocalIP, addrInfo.PublicIP)
-
-	// 如果公网ip是10网段，就失败（部分 STUN 服务器会错误地返回内网地址）
-	if strings.HasPrefix(addrInfo.PublicIP, "10.") {
-		logrus.Warnf("STUN 服务器 %s 返回的公网 IP 属于 10 网段，视为失败: %s", stunServer, addrInfo.PublicIP)
-
+	if err := checkPublicIP(addrInfo.PublicIP); err != nil {
+		logrus.Warnf("STUN 服务器 %s 的结果不能用: %v", stunServer, err)
 		return false
 	}
+
+	logrus.Infof("通过 STUN 服务器 %s 获取到的网络地址: LocalIP=%s, PublicIP=%s", stunServer, addrInfo.LocalIP, addrInfo.PublicIP)
 
 	//如果发生网络变化更新NatRouter
 	networkMu.Lock()
