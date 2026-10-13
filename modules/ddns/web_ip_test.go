@@ -21,6 +21,8 @@ func Test网页回显不是IP或不是200就拒绝(t *testing.T) {
 		{"链路本地地址", http.StatusOK, "169.254.1.1", 4},
 		{"组播地址", http.StatusOK, "224.0.0.1", 4},
 		{"运营商级 NAT", http.StatusOK, "100.64.1.1", 4},
+		{"0.0.0.0/8 保留地址", http.StatusOK, "0.0.0.1", 4},
+		{"240.0.0.0/4 保留地址", http.StatusOK, "240.0.0.1", 4},
 		{"IPv6 不能当作 IPv4", http.StatusOK, "2001:db8::1", 4},
 		{"IPv4 不能当作 IPv6", http.StatusOK, "203.0.113.10", 6},
 		{"IPv6 唯一本地地址", http.StatusOK, "fc00::1", 6},

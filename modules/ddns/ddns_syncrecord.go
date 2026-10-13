@@ -459,8 +459,16 @@ func parseWebIP(raw string, version int) (string, error) {
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.IsMulticast() {
 		return "", fmt.Errorf("%s 不是公网地址", ip)
 	}
-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
-		return "", fmt.Errorf("%s 是运营商级 NAT 地址", ip)
+	if ip4 := ip.To4(); ip4 != nil {
+		// 100.64.0.0/10 是运营商级 NAT，标准库的 IsPrivate 不覆盖。
+		if ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+			return "", fmt.Errorf("%s 是运营商级 NAT 地址", ip)
+		}
+		// 0.0.0.0/8 和 240.0.0.0/4 同样不是可路由公网，写进 DNS 也不可达。
+		// 与路由扫描的 isNonPublicIP 同一口径。
+		if ip4[0] == 0 || ip4[0] >= 240 {
+			return "", fmt.Errorf("%s 不是公网地址", ip)
+		}
 	}
 	return ip.String(), nil
 }
