@@ -363,6 +363,9 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 	sourceMu.Unlock()
 
 	var lastErr error
+	// 只统计通过校验的结果。失败、非 IP、非公网都不算一票。
+	votes := map[string]int{}
+	var onlyIP string
 	for _, s := range ordered {
 		start := time.Now()
 		ip, err := fetchIPFromWeb(s.URL, version)
@@ -388,10 +391,22 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 			lastErr = err
 			continue
 		}
-		// 第一个通过校验的来源就采用。多源必须一致会让只剩一个可用回显站时 DDNS 停更。
-		return ip, nil
+		// 凑满两票就采用。不能要求每轮都有两票：只剩一个可用回显站时，
+		// 以前能更新的记录会停在「没有两个一致的结果」。
+		// 两个及以上都成功但对不上，仍然拒绝，避免把互相矛盾的地址写进 DNS。
+		votes[ip]++
+		onlyIP = ip
+		if votes[ip] >= 2 {
+			return ip, nil
+		}
 	}
-	return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
+	if len(votes) == 0 {
+		return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
+	}
+	if len(votes) == 1 {
+		return onlyIP, nil
+	}
+	return "", fmt.Errorf("IP 查询源没有两个一致的结果: %v", votes)
 
 }
 
