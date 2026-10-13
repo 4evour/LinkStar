@@ -61,8 +61,9 @@ func GetLocalIP() (string, error) {
 // 获取公网ip
 func GetPublicIP(stunServer string) (string, error) {
 
-	// 链接STUN服务器：从出口网卡发，不然开着 TUN 时问到的是代理节点的 IP
-	conn, err := CurrentOutboundIface().DialTCP(stunServer, 3*time.Second)
+	// 从出口网卡发，不然开着 TUN 时问到的是代理节点的 IP。
+	// dialSTUN 在 TCP 失败时改走 UDP，和选服务器用的是同一条路。
+	conn, err := dialSTUN(stunServer)
 	if err != nil {
 		return "", fmt.Errorf("连接STUN服务器失败: %w", err)
 	}

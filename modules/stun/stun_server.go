@@ -138,6 +138,28 @@ func (s *STUNService) UpdateSTUNService() {
 	s.AvailableSTUNServers = available
 }
 
+// stunDialTimeout 探测一台 STUN 服务器时，TCP 和 UDP 各自的拨号上限。
+// 用 var 是为了测试能把它调短，运行时没有别的地方改它。
+var stunDialTimeout = 3 * time.Second
+
+// dialSTUN 先走 TCP，TCP 失败再试 UDP。
+//
+// 不少公共服务器只听 UDP（stun.l.google.com:19302 就是这样）。只拨 TCP 会把它们
+// 全部判死，日志里还只剩一句没有服务器名的 “TCP connection failed”。
+func dialSTUN(srv string) (net.Conn, error) {
+	o := CurrentOutboundIface()
+	conn, tcpErr := o.DialTCP(srv, stunDialTimeout)
+	if tcpErr == nil {
+		return conn, nil
+	}
+	conn, udpErr := o.DialUDP(srv, stunDialTimeout)
+	if udpErr == nil {
+		logrus.Infof("STUN 服务器 %s 的 TCP 连不上，改用 UDP：%v", srv, tcpErr)
+		return conn, nil
+	}
+	return nil, fmt.Errorf("连接 %s 失败: TCP %v；UDP %v", srv, tcpErr, udpErr)
+}
+
 // 获取连接延时
 //
 // 从出口网卡发出：开着 TUN 时不指定出口，量到的是到代理节点的延迟，
@@ -145,10 +167,9 @@ func (s *STUNService) UpdateSTUNService() {
 func getSTUNServerDelay(srv string) (*STUNServiceDelay, error) {
 	star := time.Now()
 
-	// 建立TCP连接
-	conn, err := CurrentOutboundIface().DialTCP(srv, 3*time.Second)
+	conn, err := dialSTUN(srv)
 	if err != nil {
-		return nil, fmt.Errorf("TCP connection failed to be established")
+		return nil, err
 	}
 	defer conn.Close()
 
@@ -156,15 +177,15 @@ func getSTUNServerDelay(srv string) (*STUNServiceDelay, error) {
 	msg := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
 	_, err = conn.Write(msg.Raw)
 	if err != nil {
-		return nil, fmt.Errorf("Sending STUN request failed")
+		return nil, fmt.Errorf("向 %s 发送 STUN 请求失败: %w", srv, err)
 	}
 
 	// 读取响应
-	conn.SetDeadline(time.Now().Add(3 * time.Second))
+	conn.SetDeadline(time.Now().Add(stunDialTimeout))
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if n == 0 || err != nil {
-		return nil, fmt.Errorf("%s read failed:", err)
+		return nil, fmt.Errorf("读取 %s 的 STUN 响应失败: %w", srv, err)
 	}
 
 	// 解析响应，拿到映射地址
