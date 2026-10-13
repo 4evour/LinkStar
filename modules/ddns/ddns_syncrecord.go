@@ -363,6 +363,7 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 	sourceMu.Unlock()
 
 	var lastErr error
+	votes := map[string]int{}
 	for _, s := range ordered {
 		start := time.Now()
 		ip, err := fetchIPFromWeb(s.URL, version)
@@ -384,12 +385,20 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 		}
 		sourceMu.Unlock()
 
-		if err == nil {
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		// 回显站经常给出不同地址。至少两个源一致才写进 DNS，避免把某一次的偶然结果推上去。
+		votes[ip]++
+		if votes[ip] >= 2 {
 			return ip, nil
 		}
-		lastErr = err
 	}
-	return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
+	if len(votes) == 0 {
+		return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
+	}
+	return "", fmt.Errorf("IP 查询源没有两个一致的结果: %v", votes)
 
 }
 
@@ -410,13 +419,37 @@ func fetchIPFromWeb(url string, version int) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("从 %s 得到 HTTP %d", url, resp.StatusCode)
+	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 256))
 	if err != nil {
 		return "", err
 	}
-	ip := strings.TrimSpace(string(body))
-	if ip == "" {
-		return "", fmt.Errorf("从 %s 拿到空 IP", url)
+	ip, err := parseWebIP(string(body), version)
+	if err != nil {
+		return "", fmt.Errorf("从 %s 拿到的内容不能当 IP: %w", url, err)
 	}
 	return ip, nil
+}
+
+// parseWebIP 只接受对应地址族的公网地址。HTML 错误页、私网和链路本地都不能写进 DNS。
+func parseWebIP(raw string, version int) (string, error) {
+	ip := net.ParseIP(strings.TrimSpace(raw))
+	if ip == nil {
+		return "", fmt.Errorf("%q 不是 IP", strings.TrimSpace(raw))
+	}
+	if version == 4 && ip.To4() == nil {
+		return "", fmt.Errorf("%s 不是 IPv4", ip)
+	}
+	if version == 6 && (ip.To4() != nil || ip.To16() == nil) {
+		return "", fmt.Errorf("%s 不是 IPv6", ip)
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.IsMulticast() {
+		return "", fmt.Errorf("%s 不是公网地址", ip)
+	}
+	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+		return "", fmt.Errorf("%s 是运营商级 NAT 地址", ip)
+	}
+	return ip.String(), nil
 }
