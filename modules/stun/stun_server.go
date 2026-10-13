@@ -1,8 +1,9 @@
 package stun
 
 import (
+	"encoding/binary"
 	"fmt"
-
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -148,11 +149,11 @@ var stunDialTimeout = 3 * time.Second
 // 同一地址的 UDP Binding 却是通的。写请求之前就要设好超时，否则对端不回包会一直挂着。
 func dialSTUNBinding(srv string) (net.IP, error) {
 	o := CurrentOutboundIface()
-	ip, tcpErr := bindingOn(srv, o.DialTCP)
+	ip, tcpErr := bindingOn(srv, o.DialTCP, true)
 	if tcpErr == nil {
 		return ip, nil
 	}
-	ip, udpErr := bindingOn(srv, o.DialUDP)
+	ip, udpErr := bindingOn(srv, o.DialUDP, false)
 	if udpErr != nil {
 		return nil, fmt.Errorf("连接 %s 失败: TCP %v；UDP %v", srv, tcpErr, udpErr)
 	}
@@ -160,17 +161,18 @@ func dialSTUNBinding(srv string) (net.IP, error) {
 	return ip, nil
 }
 
-func bindingOn(srv string, dial func(string, time.Duration) (net.Conn, error)) (net.IP, error) {
+func bindingOn(srv string, dial func(string, time.Duration) (net.Conn, error), tcp bool) (net.IP, error) {
 	conn, err := dial(srv, stunDialTimeout)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
-	return readSTUNBinding(conn, srv)
+	return readSTUNBinding(conn, srv, tcp)
 }
 
-// readSTUNBinding 在已连接的套接字上完成一次 Binding。超时在写请求之前设好。
-func readSTUNBinding(conn net.Conn, srv string) (net.IP, error) {
+// readSTUNBinding 在已连接的套接字上完成一次 Binding。超时在写请求之前设好，
+// TCP 按帧读和 UDP 按数据报读共用这一次 deadline。
+func readSTUNBinding(conn net.Conn, srv string, tcp bool) (net.IP, error) {
 	if err := conn.SetDeadline(time.Now().Add(stunDialTimeout)); err != nil {
 		return nil, fmt.Errorf("设置 %s 超时失败: %w", srv, err)
 	}
@@ -178,13 +180,12 @@ func readSTUNBinding(conn net.Conn, srv string) (net.IP, error) {
 	if _, err := conn.Write(msg.Raw); err != nil {
 		return nil, fmt.Errorf("向 %s 发送 STUN 请求失败: %w", srv, err)
 	}
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if n == 0 || err != nil {
+	raw, err := readSTUNMessage(conn, tcp)
+	if err != nil {
 		return nil, fmt.Errorf("读取 %s 的 STUN 响应失败: %w", srv, err)
 	}
 	var response stun.Message
-	response.Raw = buf[:n]
+	response.Raw = raw
 	if err := response.Decode(); err != nil {
 		return nil, fmt.Errorf("解码 %s 的 STUN 响应失败: %w", srv, err)
 	}
@@ -193,6 +194,47 @@ func readSTUNBinding(conn net.Conn, srv string) (net.IP, error) {
 		return nil, fmt.Errorf("读取 %s 的映射地址失败: %w", srv, err)
 	}
 	return xorAddr.IP, nil
+}
+
+// stunHeaderLen 是 STUN 固定头长度。头里 [2:4] 是属性区的大端长度，不含这 20 字节。
+const stunHeaderLen = 20
+
+// stunMaxBodyLen 挡住把长度字段写成超大值、把选路卡在一次读上的响应。
+const stunMaxBodyLen = 4096
+
+// readSTUNMessage 按传输方式收一条 STUN 消息。
+//
+// TCP 是字节流：一次 Read 可能只拿到头的前半段，接着 Decode 会报
+// “not enough bytes to read header”，一台其实可用的 TCP 服务器就被丢掉。
+// UDP 端口如果也不通，打洞就起不来。所以 TCP 先读满 20 字节头，再按长度读属性。
+// UDP 一个数据报就是一条消息，保持一次 Read。
+func readSTUNMessage(conn net.Conn, tcp bool) ([]byte, error) {
+	if !tcp {
+		buf := make([]byte, 1024)
+		n, err := conn.Read(buf)
+		if n == 0 || err != nil {
+			if err == nil {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+		return buf[:n], nil
+	}
+
+	header := make([]byte, stunHeaderLen)
+	if _, err := io.ReadFull(conn, header); err != nil {
+		return nil, err
+	}
+	bodyLen := int(binary.BigEndian.Uint16(header[2:4]))
+	if bodyLen > stunMaxBodyLen {
+		return nil, fmt.Errorf("STUN 响应体过大: %d", bodyLen)
+	}
+	raw := make([]byte, stunHeaderLen+bodyLen)
+	copy(raw, header)
+	if _, err := io.ReadFull(conn, raw[stunHeaderLen:]); err != nil {
+		return nil, err
+	}
+	return raw, nil
 }
 
 // 获取连接延时

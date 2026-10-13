@@ -99,6 +99,38 @@ func TestReviewTCPBinding失败时改用UDP(t *testing.T) {
 	}
 }
 
+func TestReviewTCP响应分片仍能选中服务器(t *testing.T) {
+	mapped := net.ParseIP("203.0.113.60")
+	addr := startSplitTCPSTUN(t, mapped)
+
+	old := stunDialTimeout
+	oldOutbound := currentOutboundIface.Load()
+	oldCfg := networkConfig.Load()
+	stunDialTimeout = time.Second
+	currentOutboundIface.Store(&OutboundIface{Name: "lo", LocalIP: "127.0.0.1"})
+	networkConfig.Store(&model.NetworkConfig{DNSMode: model.ModeSystem})
+	t.Cleanup(func() {
+		stunDialTimeout = old
+		currentOutboundIface.Store(oldOutbound)
+		networkConfig.Store(oldCfg)
+	})
+
+	ip, err := dialSTUNBinding(addr)
+	if err != nil {
+		t.Fatalf("TCP 把 Binding 响应拆成两段时仍应读完整帧: %v", err)
+	}
+	if !ip.Equal(mapped) {
+		t.Fatalf("映射地址 = %s，想要 %s", ip, mapped)
+	}
+	got, err := getSTUNServerDelay(addr)
+	if err != nil {
+		t.Fatalf("分片的 TCP STUN 服务器应被选中: %v", err)
+	}
+	if got.Server != addr {
+		t.Fatalf("选中的服务器 = %q，想要 %q", got.Server, addr)
+	}
+}
+
 func TestReview重试间隔不超过五分钟(t *testing.T) {
 	if got := nextSTUNRetryWait(15 * time.Second); got != 30*time.Second {
 		t.Fatalf("15s 翻倍 = %s，想要 30s", got)
@@ -228,4 +260,51 @@ func startTCPBlackholeUDPSTUN(t *testing.T, mapped net.IP) string {
 		}
 	}()
 	return tcpLn.Addr().String()
+}
+
+// startSplitTCPSTUN 只开 TCP：先写出合法响应的前 12 字节，停一下再写剩余部分。
+// 没有 UDP 监听，读不完整帧就不能靠 UDP 把这台服务器救回来。
+func startSplitTCPSTUN(t *testing.T, mapped net.IP) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go writeSplitSTUNResponse(c, mapped)
+		}
+	}()
+	return ln.Addr().String()
+}
+
+func writeSplitSTUNResponse(conn net.Conn, mapped net.IP) {
+	defer conn.Close()
+	if tc, ok := conn.(*net.TCPConn); ok {
+		_ = tc.SetNoDelay(true)
+	}
+	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+	buf := make([]byte, 128)
+	if _, err := conn.Read(buf); err != nil {
+		return
+	}
+	res := stun.MustBuild(
+		stun.BindingSuccess,
+		&stun.XORMappedAddress{IP: mapped, Port: 3478},
+	)
+	raw := res.Raw
+	if len(raw) <= 12 {
+		return
+	}
+	if _, err := conn.Write(raw[:12]); err != nil {
+		return
+	}
+	// 留出时间让对端的第一次 Read 只拿到头的前半段，再把剩下的帧送出去。
+	time.Sleep(80 * time.Millisecond)
+	_, _ = conn.Write(raw[12:])
 }
