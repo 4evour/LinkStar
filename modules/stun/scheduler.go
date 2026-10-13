@@ -646,7 +646,7 @@ func (s *Scheduler) sendServiceWebhook(entry *serviceEntry, key string, req STUN
 	}
 	publicIP := state.ExternalIP
 	if publicIP == "" {
-		publicIP = Runtime.Network.PublicIP
+		publicIP = PublicIP()
 	}
 	if publicIP == "" || state.ExternalPort == 0 {
 		return
@@ -676,6 +676,11 @@ func (s *Scheduler) sendServiceWebhook(entry *serviceEntry, key string, req STUN
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Webhook 发送时崩溃，已拦住以免整个进程退出：%v", r)
+			}
+		}()
 		if _, err := webhook.Send(cfg, fields); err != nil {
 			msg := fmt.Sprintf("Webhook 发送失败：%v", err)
 			logrus.WithError(err).Warnf("STUN webhook failed: key=%s", key)
@@ -709,7 +714,7 @@ func (s *Scheduler) syncServiceRedirect(entry *serviceEntry, key string, req STU
 	if host == "" {
 		host = state.ExternalIP
 		if host == "" {
-			host = Runtime.Network.PublicIP
+			host = PublicIP()
 		}
 	}
 	if host == "" {
