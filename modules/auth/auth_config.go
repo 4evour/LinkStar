@@ -27,6 +27,11 @@ func ReadConfig() (Config, error) {
 		logrus.Error("Auth Config 读取失败：", err)
 		return cfg, err
 	}
+	// 老配置可能是 0644。读鉴权配置时收紧，而不是让所有 JSON 读取都去改父目录。
+	if err := utilsFile.ProtectConfigFile(ConfigPath); err != nil {
+		logrus.Error("Auth Config 权限收紧失败：", err)
+		return cfg, err
+	}
 	// 兜底：老配置或被清空的 secret，补一个
 	if cfg.JwtSecret == "" {
 		secret, err := randomSecret()

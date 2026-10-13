@@ -3,7 +3,6 @@ package utilsFile
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 )
 
 // // 读取config 配置文件
@@ -66,9 +65,6 @@ func ReadJsonFile[T any](filePath string) (T, error) {
 	if err = json.Unmarshal(data, &result); err != nil {
 		return result, err
 	}
-	// 老版本把含密钥的 JSON 写成了 0644。读到就收紧，不必等下一次保存。
-	tightenConfigPerm(filePath)
-
 	return result, nil
 }
 
@@ -84,15 +80,6 @@ func WriteJsonFile[T any](filePath string, obj T) error {
 	if err = os.WriteFile(filePath, data, 0600); err != nil {
 		return err
 	}
-	tightenConfigPerm(filePath)
-
-	return nil
-}
-
-// tightenConfigPerm 配置文件只给属主读写，所在目录不给其他用户进。
-func tightenConfigPerm(filePath string) {
-	_ = os.Chmod(filePath, 0600)
-	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
-		_ = os.Chmod(dir, 0700)
-	}
+	// 只在配置落盘时收紧。通用的 ReadJsonFile 不改权限，避免读任意 JSON 时去动父目录。
+	return ProtectConfigFile(filePath)
 }
