@@ -359,9 +359,9 @@ func (o OutboundIface) resolve(addr string) (string, error) {
 			lastErr = err
 		}
 	}
-	// 只有内置的 114/119 全部失败才改问系统。用户自己填的 DNS 是为了绕开
-	// fake-ip，这里再退回系统会把 STUN 域名解析进 TUN。
-	if !sameDNSList(servers, DefaultDNSServers) {
+	// 只在「内置」模式回退。用户选了自定义之后，哪怕填的地址和 114/119 一模一样，
+	// 也不能再问系统解析器，否则 fake-ip 会把 STUN 域名解析进 TUN。
+	if currentNetworkConfig().DNSMode == model.ModeCustom {
 		return "", fmt.Errorf("解析 %s 失败: %w", host, lastErr)
 	}
 	logrus.Warnf("内置 DNS 解析 %s 失败，改用系统 DNS：%v", host, lastErr)
@@ -372,11 +372,14 @@ func (o OutboundIface) resolve(addr string) (string, error) {
 	return resolved, nil
 }
 
+// systemResolver 内置 DNS 失败后的系统解析器。测试换成只打回环的假 DNS，避免去公网解析。
+var systemResolver = net.DefaultResolver
+
 // resolveViaSystem 用系统解析器查 IPv4。
 func (o OutboundIface) resolveViaSystem(host, port string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-	ips, err := net.DefaultResolver.LookupIP(ctx, "ip4", host)
+	ips, err := systemResolver.LookupIP(ctx, "ip4", host)
 	if err != nil || len(ips) == 0 {
 		if err == nil {
 			err = fmt.Errorf("没有 A 记录")
@@ -384,18 +387,6 @@ func (o OutboundIface) resolveViaSystem(host, port string) (string, error) {
 		return "", fmt.Errorf("解析 %s 失败: %w", host, err)
 	}
 	return net.JoinHostPort(ips[0].String(), port), nil
-}
-
-func sameDNSList(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // withDNSPort "114.114.114.114" → "114.114.114.114:53"，带了端口的原样返回

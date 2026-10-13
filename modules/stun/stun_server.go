@@ -138,26 +138,61 @@ func (s *STUNService) UpdateSTUNService() {
 	s.AvailableSTUNServers = available
 }
 
-// stunDialTimeout 探测一台 STUN 服务器时，TCP 和 UDP 各自的拨号上限。
+// stunDialTimeout 一次 Binding 的拨号和读写上限。
 // 用 var 是为了测试能把它调短，运行时没有别的地方改它。
 var stunDialTimeout = 3 * time.Second
 
-// dialSTUN 先走 TCP，TCP 失败再试 UDP。
+// dialSTUNBinding 先在 TCP 上做完一次 Binding，任何一步失败再在 UDP 上做一遍。
 //
-// 不少公共服务器只听 UDP（stun.l.google.com:19302 就是这样）。只拨 TCP 会把它们
-// 全部判死，日志里还只剩一句没有服务器名的 “TCP connection failed”。
-func dialSTUN(srv string) (net.Conn, error) {
+// 只在 DialTCP 失败时改走 UDP 不够：有的服务器 TCP 端口能握手，但不回答 STUN，
+// 同一地址的 UDP Binding 却是通的。写请求之前就要设好超时，否则对端不回包会一直挂着。
+func dialSTUNBinding(srv string) (net.IP, error) {
 	o := CurrentOutboundIface()
-	conn, tcpErr := o.DialTCP(srv, stunDialTimeout)
+	ip, tcpErr := bindingOn(srv, o.DialTCP)
 	if tcpErr == nil {
-		return conn, nil
+		return ip, nil
 	}
-	conn, udpErr := o.DialUDP(srv, stunDialTimeout)
-	if udpErr == nil {
-		logrus.Infof("STUN 服务器 %s 的 TCP 连不上，改用 UDP：%v", srv, tcpErr)
-		return conn, nil
+	ip, udpErr := bindingOn(srv, o.DialUDP)
+	if udpErr != nil {
+		return nil, fmt.Errorf("连接 %s 失败: TCP %v；UDP %v", srv, tcpErr, udpErr)
 	}
-	return nil, fmt.Errorf("连接 %s 失败: TCP %v；UDP %v", srv, tcpErr, udpErr)
+	logrus.Infof("STUN 服务器 %s 的 TCP Binding 失败，改用 UDP：%v", srv, tcpErr)
+	return ip, nil
+}
+
+func bindingOn(srv string, dial func(string, time.Duration) (net.Conn, error)) (net.IP, error) {
+	conn, err := dial(srv, stunDialTimeout)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	return readSTUNBinding(conn, srv)
+}
+
+// readSTUNBinding 在已连接的套接字上完成一次 Binding。超时在写请求之前设好。
+func readSTUNBinding(conn net.Conn, srv string) (net.IP, error) {
+	if err := conn.SetDeadline(time.Now().Add(stunDialTimeout)); err != nil {
+		return nil, fmt.Errorf("设置 %s 超时失败: %w", srv, err)
+	}
+	msg := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
+	if _, err := conn.Write(msg.Raw); err != nil {
+		return nil, fmt.Errorf("向 %s 发送 STUN 请求失败: %w", srv, err)
+	}
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if n == 0 || err != nil {
+		return nil, fmt.Errorf("读取 %s 的 STUN 响应失败: %w", srv, err)
+	}
+	var response stun.Message
+	response.Raw = buf[:n]
+	if err := response.Decode(); err != nil {
+		return nil, fmt.Errorf("解码 %s 的 STUN 响应失败: %w", srv, err)
+	}
+	var xorAddr stun.XORMappedAddress
+	if err := xorAddr.GetFrom(&response); err != nil {
+		return nil, fmt.Errorf("读取 %s 的映射地址失败: %w", srv, err)
+	}
+	return xorAddr.IP, nil
 }
 
 // 获取连接延时
@@ -167,46 +202,16 @@ func dialSTUN(srv string) (net.Conn, error) {
 func getSTUNServerDelay(srv string) (*STUNServiceDelay, error) {
 	star := time.Now()
 
-	conn, err := dialSTUN(srv)
+	ip, err := dialSTUNBinding(srv)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
-
-	// 发送stun请求
-	msg := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
-	_, err = conn.Write(msg.Raw)
-	if err != nil {
-		return nil, fmt.Errorf("向 %s 发送 STUN 请求失败: %w", srv, err)
-	}
-
-	// 读取响应
-	conn.SetDeadline(time.Now().Add(stunDialTimeout))
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if n == 0 || err != nil {
-		return nil, fmt.Errorf("读取 %s 的 STUN 响应失败: %w", srv, err)
-	}
-
-	// 解析响应，拿到映射地址
-	var response stun.Message
-	response.Raw = buf[:n]
-	if err := response.Decode(); err != nil {
-		return nil, fmt.Errorf("decode STUN failed: %w", err)
-	}
-	var xorAddr stun.XORMappedAddress
-	if err := xorAddr.GetFrom(&response); err != nil {
-		return nil, fmt.Errorf("get mapped address failed: %w", err)
-	}
-
 	// 返回的不是公网IP，视为超时/不可用
-	if isNonPublicIP(xorAddr.IP) {
-		return nil, fmt.Errorf("STUN服务器 %s 返回非公网IP: %s", srv, xorAddr.IP.String())
+	if isNonPublicIP(ip) {
+		return nil, fmt.Errorf("STUN服务器 %s 返回非公网IP: %s", srv, ip.String())
 	}
 
-	dalay := time.Since(star)
-
-	return &STUNServiceDelay{Server: srv, Delay: dalay}, nil
+	return &STUNServiceDelay{Server: srv, Delay: time.Since(star)}, nil
 }
 
 // 判断是不是不可用作公网的IP（私网/回环/链路本地/CGNAT等）

@@ -93,6 +93,21 @@ func InitSTUN() error {
 // stunRetryWait 选不出服务器之后隔多久再探一次。测试可改短。
 var stunRetryWait = 15 * time.Second
 
+// stunRetryMax 退避上限。翻倍之后如果超过它，就停在这里，不能再长到 8 分钟。
+const stunRetryMax = 5 * time.Minute
+
+// nextSTUNRetryWait 把等待时间翻倍，并钳在 5 分钟。240 秒再翻倍会变成 480 秒，这里截成 300 秒。
+func nextSTUNRetryWait(wait time.Duration) time.Duration {
+	if wait >= stunRetryMax {
+		return stunRetryMax
+	}
+	wait *= 2
+	if wait > stunRetryMax {
+		return stunRetryMax
+	}
+	return wait
+}
+
 var startSTUNRuntimeOnce sync.Once
 
 // retrySTUNServerSelection 在后台重试选服务器，选到之后再把打洞跑起来。
@@ -108,9 +123,7 @@ func retrySTUNServerSelection() {
 		Runtime.Config.BestSTUN = Runtime.STUNService.BestSTUNServer
 		if Runtime.Config.BestSTUN == "" {
 			logrus.Warnf("仍然没有可用的 STUN 服务器，%s 后再试", wait)
-			if wait < 5*time.Minute {
-				wait *= 2
-			}
+			wait = nextSTUNRetryWait(wait)
 			continue
 		}
 		logrus.Infof("STUN 服务器已就绪：%s", Runtime.Config.BestSTUN)

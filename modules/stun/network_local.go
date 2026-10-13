@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
-	"github.com/pion/stun"
 	"github.com/sirupsen/logrus"
 )
 
@@ -62,39 +60,10 @@ func GetLocalIP() (string, error) {
 func GetPublicIP(stunServer string) (string, error) {
 
 	// 从出口网卡发，不然开着 TUN 时问到的是代理节点的 IP。
-	// dialSTUN 在 TCP 失败时改走 UDP，和选服务器用的是同一条路。
-	conn, err := dialSTUN(stunServer)
+	// 和选服务器一样：TCP Binding 完不成就再试 UDP，超时在写出请求之前就设好。
+	ip, err := dialSTUNBinding(stunServer)
 	if err != nil {
 		return "", fmt.Errorf("连接STUN服务器失败: %w", err)
 	}
-	defer conn.Close()
-
-	// 发送STUN请求
-	msg := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
-	if _, err := conn.Write(msg.Raw); err != nil {
-		return "", fmt.Errorf("发送STUN请求失败%s", err)
-	}
-
-	// 读取响应
-	conn.SetDeadline(time.Now().Add(3 * time.Second))
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return "", fmt.Errorf("读取响应失败：%s", err)
-	}
-
-	// 解析响应
-	var response stun.Message
-	response.Raw = buf[:n]
-	if err = response.Decode(); err != nil {
-		return "", fmt.Errorf("解码stun失败%s", err)
-	}
-
-	var xorAddr stun.XORMappedAddress
-	if err = xorAddr.GetFrom(&response); err != nil {
-		return "", fmt.Errorf("获取映射地址失败: %s", err)
-
-	}
-
-	return xorAddr.IP.String(), nil
+	return ip.String(), nil
 }
