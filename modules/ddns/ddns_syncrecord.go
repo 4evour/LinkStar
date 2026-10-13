@@ -352,7 +352,10 @@ func initDefaultIPSources() {
 	wg.Wait()
 }
 
-// fetchIPFromWebList 从默认列表自动尝试
+// fetchIPFromWebList 按评分从低到高试内置回显源。
+//
+// 两个源给出同一个地址就立刻采用。只剩一个有效来源，或各源对不上且都没有两票时，
+// 仍返回最先成功的公网 IP：内置列表是老配置的默认路径，凑不齐两票不能整次失败。
 func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 	sourceMu.Lock()
 	sort.Slice(sources, func(i, j int) bool {
@@ -364,8 +367,8 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 
 	var lastErr error
 	// 只统计通过校验的结果。失败、非 IP、非公网都不算一票。
+	var firstIP string
 	votes := map[string]int{}
-	var onlyIP string
 	for _, s := range ordered {
 		start := time.Now()
 		ip, err := fetchIPFromWeb(s.URL, version)
@@ -391,11 +394,12 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 			lastErr = err
 			continue
 		}
-		// 凑满两票就采用。不能要求每轮都有两票：只剩一个可用回显站时，
-		// 以前能更新的记录会停在「没有两个一致的结果」。
-		// 两个及以上都成功但对不上，仍然拒绝，避免把互相矛盾的地址写进 DNS。
+		if firstIP == "" {
+			firstIP = ip
+		}
+		// 两个源一致就立刻用。扫完仍凑不齐两票时退回最先成功的那个：
+		// 内置列表是老配置的默认路径，不能再要求必须凑满两票。
 		votes[ip]++
-		onlyIP = ip
 		if votes[ip] >= 2 {
 			return ip, nil
 		}
@@ -403,11 +407,10 @@ func fetchIPFromWebList(sources []*webIPSource, version int) (string, error) {
 	if len(votes) == 0 {
 		return "", fmt.Errorf("所有 IP 查询源均失败，最后一个错误: %w", lastErr)
 	}
-	if len(votes) == 1 {
-		return onlyIP, nil
+	if len(votes) > 1 {
+		logrus.Warnf("IP 查询源结果不一致 %v，采用最先成功的 %s", votes, firstIP)
 	}
-	return "", fmt.Errorf("IP 查询源没有两个一致的结果: %v", votes)
-
+	return firstIP, nil
 }
 
 // fetchIPFormWeb 从给定URL拉取纯文本ip

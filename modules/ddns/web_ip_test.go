@@ -3,8 +3,8 @@ package ddns
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+	"time"
 )
 
 func Test网页回显不是IP或不是200就拒绝(t *testing.T) {
@@ -57,7 +57,7 @@ func Test唯一合法来源可以直接采用(t *testing.T) {
 		newWebIPSource(t, "203.0.113.10", http.StatusOK),
 	}, 4)
 	if err != nil || ip != "203.0.113.10" {
-		t.Fatalf("唯一合法来源应直接采用，实际 %q %v", ip, err)
+		t.Fatalf("只有一个有效来源时应采用 203.0.113.10，实际 %q %v", ip, err)
 	}
 }
 
@@ -93,12 +93,15 @@ func Test两个来源一致即可采用即使还有一个不同(t *testing.T) {
 	}
 }
 
-func Test两个来源结果不一致时拒绝(t *testing.T) {
-	_, err := fetchIPFromWebList([]*webIPSource{
-		newWebIPSource(t, "203.0.113.10", http.StatusOK),
-		newWebIPSource(t, "203.0.113.11", http.StatusOK),
-	}, 4)
-	if err == nil || !strings.Contains(err.Error(), "没有两个一致") {
-		t.Fatalf("两个来源都成功但结果不一致时应拒绝，实际 %v", err)
+func Test来源互相矛盾时采用最先成功的(t *testing.T) {
+	first := newWebIPSource(t, "203.0.113.10", http.StatusOK)
+	first.AvgLatency = time.Millisecond
+	second := newWebIPSource(t, "203.0.113.11", http.StatusOK)
+	second.AvgLatency = 2 * time.Millisecond
+
+	// 评分越低越先试。两边都只有一票时，用最先成功的那个，而不是整次失败。
+	ip, err := fetchIPFromWebList([]*webIPSource{first, second}, 4)
+	if err != nil || ip != "203.0.113.10" {
+		t.Fatalf("来源互相矛盾时应采用最先成功的 203.0.113.10，实际 %q %v", ip, err)
 	}
 }
